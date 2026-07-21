@@ -1,243 +1,244 @@
 (require "helix/components.scm")
 
-;; TODO these 2 maps can be reduced to a symbol only, the colors look bad on solarized
 ;;@doc
 ;; Map of file extension to their icons and colors
 (define *extensions*
   (hash
-    "7z" (cons "󰗄" "#eca517")
-    "aac" (cons "󰈣" "#00afff")
-    "ai" (cons "" "#cbcb41")
-    "aif" (cons "󰈣" "#00afff")
-    "applescript" (cons "󰀵" "#6d8085")
-    "ass" (cons "󰨖" "#ffb713")
-    "astro" (cons "" "#e23f67")
-    "awk" (cons "" "#4d5a5e")
-    "bat" (cons "󰯂" "#C1F12E")
-    "bazel" (cons "" "#89e051")
-    "bib" (cons "󱉟" "#cbcb41")
-    "bicep" (cons "" "#519aba")
-    "bicepparam" (cons "" "#9f74b3")
-    "blp" (cons "󰠡" "#5796E2")
-    "bmp" (cons "󰈟" "#a074c4")
-    "bz" (cons "󰗄" "#eca517")
-    "bz2" (cons "󰗄" "#eca517")
-    "bz3" (cons "󰗄" "#eca517")
-    "bzl" (cons "" "#89e051")
-    "c" (cons "󰙱" "#599eff")
-    "cast" (cons "󰈫" "#FD971F")
-    "cbl" (cons "󱌼" "#005ca5")
-    "ccm" (cons "󰙲" "#f34b7d")
-    "cjs" (cons "󰌞" "#cbcb41")
-    "clj" (cons "" "#8dc149")
-    "cljc" (cons "" "#8dc149")
-    "cljs" (cons "" "#519aba")
-    "cmake" (cons "󱁤" "#6d8086")
-    "cob" (cons "󱌼" "#005ca5")
-    "cpp" (cons "󰙲" "#519aba")
-    "cppm" (cons "󰙲" "#519aba")
-    "cr" (cons "" "#c8c8c8")
-    "cs" (cons "󰌛" "#596706")
-    "csproj" (cons "󰗀" "#512bd4")
-    "css" (cons "󰌜" "#42a5f5")
-    "csv" (cons "" "#89e051")
-    "cts" (cons "󰛦" "#519aba")
-    "cu" (cons "" "#89e051")
-    "cue" (cons "󰝚" "#ed95ae")
-    "cuh" (cons "" "#a074c4")
-    "cxx" (cons "󰙲" "#519aba")
-    "cxxm" (cons "󰙲" "#519aba")
-    "dart" (cons "" "#03589C")
-    "desktop" (cons "󰍹" "#563d7c")
-    "diff" (cons "󰦓" "#41535b")
-    "doc" (cons "󱎒" "#185abd")
-    "docx" (cons "󱎒" "#185abd")
-    "dot" (cons "󱎒" "#30638e")
-    "eex" (cons "" "#a074c4")
-    "el" (cons "" "#8172be")
-    "elm" (cons "" "#519aba")
-    "epp" (cons "" "#FFA61A")
-    "erb" (cons "󰴭" "#701516")
-    "erl" (cons "" "#B83998")
-    "exe" (cons "󰖳" "#9F0500")
-    "exs" (cons "" "#a074c4")
-    "f90" (cons "󱈚" "#734f96")
-    "fish" (cons "" "#4d5a5e")
-    "flac" (cons "󰈣" "#0075aa")
-    "fnl" (cons "" "#fff3d7")
-    "fsi" (cons "" "#519aba")
-    "fsx" (cons "" "#519aba")
-    "gd" (cons "" "#6d8086")
-    "gemspec" (cons "󰴭" "#701516")
-    "gif" (cons "󰵸" "#a074c4")
-    "go" (cons "󰟓" "#519aba")
-    "gql" (cons "󰡷" "#e535ab")
-    "graphql" (cons "󰡷" "#e535ab")
-    "gv" (cons "󱁉" "#30638e")
-    "gz" (cons "󰗄" "#eca517")
-    "h" (cons "󰫵" "#a074c4")
-    "haml" (cons "󰅴" "#eaeae1")
-    "hbs" (cons "󰌞" "#f0772b")
-    "heex" (cons "" "#a074c4")
-    "hex" (cons "󰋘" "#2e63ff")
-    "hh" (cons "󰙲" "#a074c4")
-    "hpp" (cons "󰙲" "#a074c4")
-    "hrl" (cons "" "#B83998")
-    "hs" (cons "󰲒" "#a074c4")
-    "html" (cons "󰌝" "#e44d26")
-    "hurl" (cons "󰫵" "#ff0288")
-    "hx" (cons "󰫵" "#ea8220")
-    "hxx" (cons "󰙲" "#a074c4")
-    "ini" (cons "󰯂" "#6d8086")
-    "ino" (cons "" "#56b6c2")
-    "ipynb" (cons "󰠮" "#51a0cf")
-    "ixx" (cons "󰙲" "#519aba")
-    "java" (cons "󰬷" "#cc3e44")
-    "jl" (cons "" "#a270ba")
-    "jpeg" (cons "󰈥" "#a074c4")
-    "jpg" (cons "󰈥" "#a074c4")
-    "js" (cons "󰌞" "#cbcb41")
-    "json" (cons "󰘦" "#cbcb41")
-    "json5" (cons "󰘦" "#cbcb41")
-    "jsonc" (cons "󰘦" "#cbcb41")
-    "jsx" (cons "" "#20c2e3")
-    "kt" (cons "󱈙" "#7F52FF")
-    "kts" (cons "󱈙" "#7F52FF")
-    "leex" (cons "" "#a074c4")
-    "less" (cons "󰌜" "#563d7c")
-    "lhs" (cons "" "#a074c4")
-    "lib" (cons "󰫳" "#4d2c0b")
-    "liquid" (cons "" "#95BF47")
-    "lrc" (cons "󰫹" "#ffb713")
-    "lua" (cons "󰢱" "#51a0cf")
-    "luau" (cons "󰢱" "#00a2ff")
-    "m3u" (cons "󰲸" "#ed95ae")
-    "m3u8" (cons "󰲸" "#ed95ae")
-    "m4a" (cons "󰈣" "#00afff")
-    "m4v" (cons "󰈫" "#FD971F")
-    "md" (cons "󰍔" "#dddddd")
-    "mjs" (cons "󰌞" "#f1e05a")
-    "mkv" (cons "󰈫" "#FD971F")
-    "ml" (cons "" "#e37933")
-    "mli" (cons "" "#e37933")
-    "mo" (cons "󰫴" "#9772FB")
-    "mov" (cons "󰈫" "#FD971F")
-    "mp3" (cons "󰈣" "#00afff")
-    "mp4" (cons "󰈫" "#FD971F")
-    "mpp" (cons "󰙲" "#519aba")
-    "msf" (cons "󰬅" "#137be1")
-    "mts" (cons "󰛦" "#519aba")
-    "mustache" (cons "󱗞" "#e37933")
-    "nim" (cons "" "#f3d400")
-    "nix" (cons "󱄅" "#7ebae4")
-    "nu" (cons "" "#3aa675")
-    "obj" (cons "󰆧" "#888888")
-    "ogg" (cons "󰈣" "#0075aa")
-    "org" (cons "" "#77AA99")
-    "pdf" (cons "󰈦" "#b30b00")
-    "php" (cons "󰌟" "#a074c4")
-    "pls" (cons "󰆼" "#ed95ae")
-    "png" (cons "󰸭" "#a074c4")
-    "po" (cons "󰗊" "#2596be")
-    "pot" (cons "󰗊" "#2596be")
-    "ppt" (cons "󱎐" "#cb4a32")
-    "prisma" (cons "" "#5a67d8")
-    "ps1" (cons "󰨊" "#4273ca")
-    "psd1" (cons "󰨊" "#6975c4")
-    "psm1" (cons "󰨊" "#6975c4")
-    "pxd" (cons "󰫽" "#5aa7e4")
-    "pxi" (cons "󰫽" "#5aa7e4")
-    "py" (cons "󰌠" "#ffbc03")
-    "pyi" (cons "󰌠" "#ffbc03")
-    "pyx" (cons "󰫽" "#5aa7e4")
-    "qml" (cons "󰫾" "#40cd52")
-    "rake" (cons "󰴭" "#701516")
-    "rar" (cons "󰗄" "#eca517")
-    "rb" (cons "󰴭" "#701516")
-    "res" (cons "󰫿" "#cc3e44")
-    "resi" (cons "󰫿" "#f55385")
-    "rmd" (cons "󰍔" "#519aba")
-    "rs" (cons "󱘗" "#dea584")
-    "rss" (cons "󰗀" "#FB9D3B")
-    "sass" (cons "󰟬" "#f55385")
-    "sbt" (cons "" "#cc3e44")
-    "scad" (cons "" "#f9d72c")
-    "scala" (cons "" "#cc3e44")
-    "scm" (cons "󰘧" "#eeeeee")
-    "scss" (cons "󰟬" "#f55385")
-    "sh" (cons "" "#4d5a5e")
-    "sln" (cons "󰘐" "#854CC7")
-    "sml" (cons "󰘧" "#e37933")
-    "so" (cons "" "#dcddd6")
-    "sol" (cons "" "#519aba")
-    "srt" (cons "󰨖" "#ffb713")
-    "ssa" (cons "󰨖" "#ffb713")
-    "stp" (cons "󰬀" "#839463")
-    "styl" (cons "󰴒" "#8dc149")
-    "sub" (cons "󰚩" "#ffb713")
-    "sv" (cons "󰍛" "#019833")
-    "svelte" (cons "" "#ff3e00")
-    "svg" (cons "󰜡" "#FFB13B")
-    "svh" (cons "󰍛" "#019833")
-    "swift" (cons "󰛥" "#e37933")
-    "tcl" (cons "󰛓" "#1e5cb3")
-    "templ" (cons "󰬁" "#dbbd30")
-    "tf" (cons "󱁢" "#5F43E9")
-    "tfvars" (cons "󱁢" "#5F43E9")
-    "tgz" (cons "󰗄" "#eca517")
-    "toml" (cons "" "#9c4221")
-    "tres" (cons "" "#6d8086")
-    "ts" (cons "󰛦" "#519aba")
-    "tscn" (cons "" "#6d8086")
-    "tsx" (cons "" "#1354bf")
-    "twig" (cons "" "#8dc149")
-    "txt" (cons "󰈙" "#89e051")
-    "txz" (cons "󰗄" "#eca517")
-    "ui" (cons "󰗀" "#0c306e")
-    "vala" (cons "󰬝" "#7239b3")
-    "vhd" (cons "󰍛" "#019833")
-    "vhdl" (cons "󰍛" "#019833")
-    "vim" (cons "" "#019833")
-    "vsh" (cons "" "#5d87bf")
-    "vue" (cons "󰡄" "#8dc149")
-    "wav" (cons "󰈣" "#00afff")
-    "webm" (cons "󰈫" "#FD971F")
-    "webmanifest" (cons "󰘦" "#f1e05a")
-    "webp" (cons "󰈟" "#a074c4")
-    "wma" (cons "󰈣" "#00afff")
-    "wrl" (cons "󰬃" "#888888")
-    "x" (cons "󰫿" "#599eff")
-    "xls" (cons "󱎏" "#207245")
-    "xlsx" (cons "󱎏" "#207245")
-    "xul" (cons "󰗀" "#e37933")
-    "xz" (cons "󰗄" "#eca517")
-    "yaml" (cons "" "#6d8086")
-    "yml" (cons "" "#6d8086")
-    "zig" (cons "" "#f69a1b")
-    "zip" (cons "󰗄" "#eca517")
-    "zsh" (cons "" "#89e051")
-    "zst" (cons "󰗄" "#eca517")
+    "7z" "󰗄"
+    "aac" "󰈣"
+    "ai" ""
+    "aif" "󰈣"
+    "applescript" "󰀵"
+    "ass" "󰨖"
+    "astro" ""
+    "awk" ""
+    "bat" "󰯂"
+    "bazel" ""
+    "bib" "󱉟"
+    "bicep" ""
+    "bicepparam" ""
+    "blp" "󰠡"
+    "bmp" "󰈟"
+    "bz" "󰗄"
+    "bz2" "󰗄"
+    "bz3" "󰗄"
+    "bzl" ""
+    "c" "󰙱"
+    "cast" "󰈫"
+    "cbl" "󱌼"
+    "ccm" "󰙲"
+    "cjs" "󰌞"
+    "clj" ""
+    "cljc" ""
+    "cljs" ""
+    "cmake" "󱁤"
+    "cob" "󱌼"
+    "cpp" "󰙲"
+    "cppm" "󰙲"
+    "cr" ""
+    "cs" "󰌛"
+    "csproj" "󰗀"
+    "css" "󰌜"
+    "csv" ""
+    "cts" "󰛦"
+    "cu" ""
+    "cue" "󰝚"
+    "cuh" ""
+    "cxx" "󰙲"
+    "cxxm" "󰙲"
+    "dart" ""
+    "desktop" "󰍹"
+    "diff" "󰦓"
+    "doc" "󱎒"
+    "docx" "󱎒"
+    "dot" "󱎒"
+    "eex" ""
+    "el" ""
+    "elm" ""
+    "epp" ""
+    "erb" "󰴭"
+    "erl" ""
+    "exe" "󰖳"
+    "exs" ""
+    "f90" "󱈚"
+    "fish" ""
+    "flac" "󰈣"
+    "fnl" ""
+    "fsi" ""
+    "fsx" ""
+    "gd" ""
+    "gemspec" "󰴭"
+    "gif" "󰵸"
+    "go" "󰟓"
+    "gql" "󰡷"
+    "graphql" "󰡷"
+    "gv" "󱁉"
+    "gz" "󰗄"
+    "h" "󰫵"
+    "haml" "󰅴"
+    "hbs" "󰌞"
+    "heex" ""
+    "hex" "󰋘"
+    "hh" "󰙲"
+    "hpp" "󰙲"
+    "hrl" ""
+    "hs" "󰲒"
+    "html" "󰌝"
+    "hurl" "󰫵"
+    "hx" "󰫵"
+    "hxx" "󰙲"
+    "ini" "󰯂"
+    "ino" ""
+    "ipynb" "󰠮"
+    "ixx" "󰙲"
+    "java" "󰬷"
+    "jl" ""
+    "jpeg" "󰈥"
+    "jpg" "󰈥"
+    "js" "󰌞"
+    "json" "󰘦"
+    "json5" "󰘦"
+    "jsonc" "󰘦"
+    "jsx" ""
+    "kt" "󱈙"
+    "kts" "󱈙"
+    "leex" ""
+    "less" "󰌜"
+    "lhs" ""
+    "lib" "󰫳"
+    "liquid" ""
+    "lrc" "󰫹"
+    "lua" "󰢱"
+    "luau" "󰢱"
+    "m3u" "󰲸"
+    "m3u8" "󰲸"
+    "m4a" "󰈣"
+    "m4v" "󰈫"
+    "md" "󰍔"
+    "mjs" "󰌞"
+    "mkv" "󰈫"
+    "ml" ""
+    "mli" ""
+    "mo" "󰫴"
+    "mov" "󰈫"
+    "mp3" "󰈣"
+    "mp4" "󰈫"
+    "mpp" "󰙲"
+    "msf" "󰬅"
+    "mts" "󰛦"
+    "mustache" "󱗞"
+    "nim" ""
+    "nix" "󱄅"
+    "nu" ""
+    "obj" "󰆧"
+    "ogg" "󰈣"
+    "org" ""
+    "pdf" "󰈦"
+    "php" "󰌟"
+    "pls" "󰆼"
+    "png" "󰸭"
+    "po" "󰗊"
+    "pot" "󰗊"
+    "ppt" "󱎐"
+    "prisma" ""
+    "ps1" "󰨊"
+    "psd1" "󰨊"
+    "psm1" "󰨊"
+    "pxd" "󰫽"
+    "pxi" "󰫽"
+    "py" "󰌠"
+    "pyi" "󰌠"
+    "pyx" "󰫽"
+    "qml" "󰫾"
+    "rake" "󰴭"
+    "rar" "󰗄"
+    "rb" "󰴭"
+    "res" "󰫿"
+    "resi" "󰫿"
+    "rmd" "󰍔"
+    "rs" "󱘗"
+    "rss" "󰗀"
+    "sass" "󰟬"
+    "sbt" ""
+    "scad" ""
+    "scala" ""
+    "scm" "󰘧"
+    "scss" "󰟬"
+    "sh" ""
+    "sln" "󰘐"
+    "sml" "󰘧"
+    "so" ""
+    "sol" ""
+    "srt" "󰨖"
+    "ssa" "󰨖"
+    "stp" "󰬀"
+    "styl" "󰴒"
+    "sub" "󰚩"
+    "sv" "󰍛"
+    "svelte" ""
+    "svg" "󰜡"
+    "svh" "󰍛"
+    "swift" "󰛥"
+    "tcl" "󰛓"
+    "templ" "󰬁"
+    "tf" "󱁢"
+    "tfvars" "󱁢"
+    "tgz" "󰗄"
+    "toml" ""
+    "tres" ""
+    "ts" "󰛦"
+    "tscn" ""
+    "tsx" ""
+    "twig" ""
+    "txt" "󰈙"
+    "txz" "󰗄"
+    "ui" "󰗀"
+    "vala" "󰬝"
+    "vhd" "󰍛"
+    "vhdl" "󰍛"
+    "vim" ""
+    "vsh" ""
+    "vue" "󰡄"
+    "wav" "󰈣"
+    "webm" "󰈫"
+    "webmanifest" "󰘦"
+    "webp" "󰈟"
+    "wma" "󰈣"
+    "wrl" "󰬃"
+    "x" "󰫿"
+    "xls" "󱎏"
+    "xlsx" "󱎏"
+    "xul" "󰗀"
+    "xz" "󰗄"
+    "yaml" ""
+    "yml" ""
+    "zig" ""
+    "zip" "󰗄"
+    "zsh" ""
+    "zst" "󰗄"
   )
 )
 
 ;;@doc
 ;; Map of a specific directory name to an icon an color
 (define *directories*
-  (hash ".git" (cons "" "#f69a1b")
-        ".github" (cons "" "#3aa6e0")
-        ".config" (cons "󱁿" "#22d3ee")
-        "node_modules" (cons "" "#4caf50")
-        "src" (cons "󰴉" "#9d7cd8")
-        "lib" (cons "󰲂" "#cbcb41")
-        "test" (cons "󱞊" "#599eff")
-        "tests" (cons "󱞊" "#599eff")
-        "build" (cons "󱧼" "#6d8086")
-        "Documents" (cons "󱧶" "#f69a1b")
-        "Downloads" (cons "󰉍" "#f69a1b")
-        "Desktop" (cons "󰚝" "#f69a1b")
-        "Music" (cons "󱍙" "#f69a1b")
-        "Pictures" (cons "󰉏" "#f69a1b")
-        "Videos" (cons "󱞊" "#f69a1b"))
+  (hash
+    ".git" ""
+    ".github" ""
+    ".config" "󱁿"
+    "node_modules"""
+    "src" "󰴉"
+    "lib" "󰲂"
+    "test" "󱞊"
+    "tests" "󱞊"
+    "build" "󱧼"
+    "Documents""󱧶"
+    "Downloads"  "󰉍"
+    "Desktop" "󰚝"
+    "Music" "󱍙"
+    "Pictures" "󰉏"
+    "Videos" "󱞊"
+  )
 )
 
 (provide dir-icon)
@@ -246,7 +247,7 @@
 (define (dir-icon name)
   (define entry (hash-try-get *directories* (trim-end-matches name "/")))
   (if entry
-    (car entry)
+    entry
     "󰉋"
   )
 )
@@ -257,7 +258,7 @@
 (define (icon name)
   (define entry (hash-try-get *extensions* (file-extension name)))
   (if entry
-    (car entry)
+    entry
     "?"
   )
 )
