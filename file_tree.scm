@@ -1,6 +1,7 @@
 (require "helix/components.scm")
 (require "helix/editor.scm")
 (require "helix/misc.scm")
+(require "util.scm")
 
 (provide tree-toggle)
 
@@ -47,6 +48,9 @@
 ;;@doc
 ;; The name of the file tree ui component
 (define *tree-component-name* "file-tree")
+;;@doc
+;; The name of the ui component which handles the file tree controlls
+(define *event-handler-component-name* "event-handler")
 
 
 ;;@doc
@@ -61,12 +65,17 @@
       (set! *tree-focused?* #t)
       (set! *open-directories* (hashset-insert *open-directories* (helix-find-workspace)))
       (build-tree!)
-      ;; Add the file tree to the render stack
+      (enqueue-thread-local-callback
+        (lambda () (set-editor-clip-left! *tree-width*))
+      )
+
       (push-component! (make-tree-component))
+      (push-component! (make-handle-event-component))
     ]
 
     [(not *tree-focused?*)
       (set! *tree-focused?* #t)
+      (push-component! (make-handle-event-component))
     ]
 
     [else
@@ -165,12 +174,14 @@
 
 (struct TreeState ())
 
+;;@doc
+;; Create the component which renders the file tree, but does not handle the events
 (define (make-tree-component)
   (new-component!
     *tree-component-name*
     (TreeState)
     render-tree
-    (hash "handle_event" handle-event)
+    (hash "handle_event" (lambda (_ _) event-result/ignore))
   )
 )
 
@@ -186,8 +197,6 @@
   (define border-style (if *tree-focused?* text-style background-style))
 
   (define panel-area (area x0 y0 width height))
-
-  (set-editor-clip-left! width)
 
   ;; Clear the area wher the file tree will be displayed
   (buffer/clear-with frame panel-area background-style)
@@ -218,7 +227,6 @@
       (define prefix-w (string-length prefix))
 
       (define icon (if dir? (dir-icon name) (icon name)))
-      (define icon-color (if dir? (dir-icon-color name) (icon-color name)))
       (define highlighted? (= abs-idx *tree-cursor*))
       (define row-style (if highlighted? highlight-style text-style))
 
@@ -232,312 +240,24 @@
   )
 )
 
-(define (handle-event state event)
-  ;; makes the editor receive events while the panel is unfocused
+;;@doc
+;; Crate the component which handles the file tree input.
+;; This does not render anything, but handles the key events. This allows
+;; To remove this component and still render it, but disable key input
+(define (make-handle-event-component)
+  (new-component!
+    *event-handler-component-name*
+    (TreeState)
+    (lambda (_ _ _) void)
+    (hash "handle_event" handle-key-event)
+  )
+)
+
+(define (handle-key-event _ event)
+  (when (key-event-escape? event)
+    (set! *tree-focused?* #f)
+    event-result/close
+  )
+
   event-result/ignore
-)
-
-;;@doc
-;; Map of file extension to their icons and colors
-(define *extensions*
-  (hash
-    "7z" (cons "󰗄" "#eca517")
-    "aac" (cons "󰈣" "#00afff")
-    "ai" (cons "" "#cbcb41")
-    "aif" (cons "󰈣" "#00afff")
-    "applescript" (cons "󰀵" "#6d8085")
-    "ass" (cons "󰨖" "#ffb713")
-    "astro" (cons "" "#e23f67")
-    "awk" (cons "" "#4d5a5e")
-    "bat" (cons "󰯂" "#C1F12E")
-    "bazel" (cons "" "#89e051")
-    "bib" (cons "󱉟" "#cbcb41")
-    "bicep" (cons "" "#519aba")
-    "bicepparam" (cons "" "#9f74b3")
-    "blp" (cons "󰠡" "#5796E2")
-    "bmp" (cons "󰈟" "#a074c4")
-    "bz" (cons "󰗄" "#eca517")
-    "bz2" (cons "󰗄" "#eca517")
-    "bz3" (cons "󰗄" "#eca517")
-    "bzl" (cons "" "#89e051")
-    "c" (cons "󰙱" "#599eff")
-    "cast" (cons "󰈫" "#FD971F")
-    "cbl" (cons "󱌼" "#005ca5")
-    "ccm" (cons "󰙲" "#f34b7d")
-    "cjs" (cons "󰌞" "#cbcb41")
-    "clj" (cons "" "#8dc149")
-    "cljc" (cons "" "#8dc149")
-    "cljs" (cons "" "#519aba")
-    "cmake" (cons "󱁤" "#6d8086")
-    "cob" (cons "󱌼" "#005ca5")
-    "cpp" (cons "󰙲" "#519aba")
-    "cppm" (cons "󰙲" "#519aba")
-    "cr" (cons "" "#c8c8c8")
-    "cs" (cons "󰌛" "#596706")
-    "csproj" (cons "󰗀" "#512bd4")
-    "css" (cons "󰌜" "#42a5f5")
-    "csv" (cons "" "#89e051")
-    "cts" (cons "󰛦" "#519aba")
-    "cu" (cons "" "#89e051")
-    "cue" (cons "󰝚" "#ed95ae")
-    "cuh" (cons "" "#a074c4")
-    "cxx" (cons "󰙲" "#519aba")
-    "cxxm" (cons "󰙲" "#519aba")
-    "dart" (cons "" "#03589C")
-    "desktop" (cons "󰍹" "#563d7c")
-    "diff" (cons "󰦓" "#41535b")
-    "doc" (cons "󱎒" "#185abd")
-    "docx" (cons "󱎒" "#185abd")
-    "dot" (cons "󱎒" "#30638e")
-    "eex" (cons "" "#a074c4")
-    "el" (cons "" "#8172be")
-    "elm" (cons "" "#519aba")
-    "epp" (cons "" "#FFA61A")
-    "erb" (cons "󰴭" "#701516")
-    "erl" (cons "" "#B83998")
-    "exe" (cons "󰖳" "#9F0500")
-    "exs" (cons "" "#a074c4")
-    "f90" (cons "󱈚" "#734f96")
-    "fish" (cons "" "#4d5a5e")
-    "flac" (cons "󰈣" "#0075aa")
-    "fnl" (cons "" "#fff3d7")
-    "fsi" (cons "" "#519aba")
-    "fsx" (cons "" "#519aba")
-    "gd" (cons "" "#6d8086")
-    "gemspec" (cons "󰴭" "#701516")
-    "gif" (cons "󰵸" "#a074c4")
-    "go" (cons "󰟓" "#519aba")
-    "gql" (cons "󰡷" "#e535ab")
-    "graphql" (cons "󰡷" "#e535ab")
-    "gv" (cons "󱁉" "#30638e")
-    "gz" (cons "󰗄" "#eca517")
-    "h" (cons "󰫵" "#a074c4")
-    "haml" (cons "󰅴" "#eaeae1")
-    "hbs" (cons "󰌞" "#f0772b")
-    "heex" (cons "" "#a074c4")
-    "hex" (cons "󰋘" "#2e63ff")
-    "hh" (cons "󰙲" "#a074c4")
-    "hpp" (cons "󰙲" "#a074c4")
-    "hrl" (cons "" "#B83998")
-    "hs" (cons "󰲒" "#a074c4")
-    "html" (cons "󰌝" "#e44d26")
-    "hurl" (cons "󰫵" "#ff0288")
-    "hx" (cons "󰫵" "#ea8220")
-    "hxx" (cons "󰙲" "#a074c4")
-    "ini" (cons "󰯂" "#6d8086")
-    "ino" (cons "" "#56b6c2")
-    "ipynb" (cons "󰠮" "#51a0cf")
-    "ixx" (cons "󰙲" "#519aba")
-    "java" (cons "󰬷" "#cc3e44")
-    "jl" (cons "" "#a270ba")
-    "jpeg" (cons "󰈥" "#a074c4")
-    "jpg" (cons "󰈥" "#a074c4")
-    "js" (cons "󰌞" "#cbcb41")
-    "json" (cons "󰘦" "#cbcb41")
-    "json5" (cons "󰘦" "#cbcb41")
-    "jsonc" (cons "󰘦" "#cbcb41")
-    "jsx" (cons "" "#20c2e3")
-    "kt" (cons "󱈙" "#7F52FF")
-    "kts" (cons "󱈙" "#7F52FF")
-    "leex" (cons "" "#a074c4")
-    "less" (cons "󰌜" "#563d7c")
-    "lhs" (cons "" "#a074c4")
-    "lib" (cons "󰫳" "#4d2c0b")
-    "liquid" (cons "" "#95BF47")
-    "lrc" (cons "󰫹" "#ffb713")
-    "lua" (cons "󰢱" "#51a0cf")
-    "luau" (cons "󰢱" "#00a2ff")
-    "m3u" (cons "󰲸" "#ed95ae")
-    "m3u8" (cons "󰲸" "#ed95ae")
-    "m4a" (cons "󰈣" "#00afff")
-    "m4v" (cons "󰈫" "#FD971F")
-    "md" (cons "󰍔" "#dddddd")
-    "mjs" (cons "󰌞" "#f1e05a")
-    "mkv" (cons "󰈫" "#FD971F")
-    "ml" (cons "" "#e37933")
-    "mli" (cons "" "#e37933")
-    "mo" (cons "󰫴" "#9772FB")
-    "mov" (cons "󰈫" "#FD971F")
-    "mp3" (cons "󰈣" "#00afff")
-    "mp4" (cons "󰈫" "#FD971F")
-    "mpp" (cons "󰙲" "#519aba")
-    "msf" (cons "󰬅" "#137be1")
-    "mts" (cons "󰛦" "#519aba")
-    "mustache" (cons "󱗞" "#e37933")
-    "nim" (cons "" "#f3d400")
-    "nix" (cons "󱄅" "#7ebae4")
-    "nu" (cons "" "#3aa675")
-    "obj" (cons "󰆧" "#888888")
-    "ogg" (cons "󰈣" "#0075aa")
-    "org" (cons "" "#77AA99")
-    "pdf" (cons "󰈦" "#b30b00")
-    "php" (cons "󰌟" "#a074c4")
-    "pls" (cons "󰆼" "#ed95ae")
-    "png" (cons "󰸭" "#a074c4")
-    "po" (cons "󰗊" "#2596be")
-    "pot" (cons "󰗊" "#2596be")
-    "ppt" (cons "󱎐" "#cb4a32")
-    "prisma" (cons "" "#5a67d8")
-    "ps1" (cons "󰨊" "#4273ca")
-    "psd1" (cons "󰨊" "#6975c4")
-    "psm1" (cons "󰨊" "#6975c4")
-    "pxd" (cons "󰫽" "#5aa7e4")
-    "pxi" (cons "󰫽" "#5aa7e4")
-    "py" (cons "󰌠" "#ffbc03")
-    "pyi" (cons "󰌠" "#ffbc03")
-    "pyx" (cons "󰫽" "#5aa7e4")
-    "qml" (cons "󰫾" "#40cd52")
-    "rake" (cons "󰴭" "#701516")
-    "rar" (cons "󰗄" "#eca517")
-    "rb" (cons "󰴭" "#701516")
-    "res" (cons "󰫿" "#cc3e44")
-    "resi" (cons "󰫿" "#f55385")
-    "rmd" (cons "󰍔" "#519aba")
-    "rs" (cons "󱘗" "#dea584")
-    "rss" (cons "󰗀" "#FB9D3B")
-    "sass" (cons "󰟬" "#f55385")
-    "sbt" (cons "" "#cc3e44")
-    "scad" (cons "" "#f9d72c")
-    "scala" (cons "" "#cc3e44")
-    "scm" (cons "󰘧" "#eeeeee")
-    "scss" (cons "󰟬" "#f55385")
-    "sh" (cons "" "#4d5a5e")
-    "sln" (cons "󰘐" "#854CC7")
-    "sml" (cons "󰘧" "#e37933")
-    "so" (cons "" "#dcddd6")
-    "sol" (cons "" "#519aba")
-    "srt" (cons "󰨖" "#ffb713")
-    "ssa" (cons "󰨖" "#ffb713")
-    "stp" (cons "󰬀" "#839463")
-    "styl" (cons "󰴒" "#8dc149")
-    "sub" (cons "󰚩" "#ffb713")
-    "sv" (cons "󰍛" "#019833")
-    "svelte" (cons "" "#ff3e00")
-    "svg" (cons "󰜡" "#FFB13B")
-    "svh" (cons "󰍛" "#019833")
-    "swift" (cons "󰛥" "#e37933")
-    "tcl" (cons "󰛓" "#1e5cb3")
-    "templ" (cons "󰬁" "#dbbd30")
-    "tf" (cons "󱁢" "#5F43E9")
-    "tfvars" (cons "󱁢" "#5F43E9")
-    "tgz" (cons "󰗄" "#eca517")
-    "toml" (cons "" "#9c4221")
-    "tres" (cons "" "#6d8086")
-    "ts" (cons "󰛦" "#519aba")
-    "tscn" (cons "" "#6d8086")
-    "tsx" (cons "" "#1354bf")
-    "twig" (cons "" "#8dc149")
-    "txt" (cons "󰈙" "#89e051")
-    "txz" (cons "󰗄" "#eca517")
-    "ui" (cons "󰗀" "#0c306e")
-    "vala" (cons "󰬝" "#7239b3")
-    "vhd" (cons "󰍛" "#019833")
-    "vhdl" (cons "󰍛" "#019833")
-    "vim" (cons "" "#019833")
-    "vsh" (cons "" "#5d87bf")
-    "vue" (cons "󰡄" "#8dc149")
-    "wav" (cons "󰈣" "#00afff")
-    "webm" (cons "󰈫" "#FD971F")
-    "webmanifest" (cons "󰘦" "#f1e05a")
-    "webp" (cons "󰈟" "#a074c4")
-    "wma" (cons "󰈣" "#00afff")
-    "wrl" (cons "󰬃" "#888888")
-    "x" (cons "󰫿" "#599eff")
-    "xls" (cons "󱎏" "#207245")
-    "xlsx" (cons "󱎏" "#207245")
-    "xul" (cons "󰗀" "#e37933")
-    "xz" (cons "󰗄" "#eca517")
-    "yaml" (cons "" "#6d8086")
-    "yml" (cons "" "#6d8086")
-    "zig" (cons "" "#f69a1b")
-    "zip" (cons "󰗄" "#eca517")
-    "zsh" (cons "" "#89e051")
-    "zst" (cons "󰗄" "#eca517")
-  )
-)
-
-(define *directories*
-  (hash ".git" (cons "" "#f69a1b")
-        ".github" (cons "" "#3aa6e0")
-        ".config" (cons "󱁿" "#22d3ee")
-        "node_modules" (cons "" "#4caf50")
-        "src" (cons "󰴉" "#9d7cd8")
-        "lib" (cons "󰲂" "#cbcb41")
-        "test" (cons "󱞊" "#599eff")
-        "tests" (cons "󱞊" "#599eff")
-        "build" (cons "󱧼" "#6d8086")
-        "Documents" (cons "󱧶" "#f69a1b")
-        "Downloads" (cons "󰉍" "#f69a1b")
-        "Desktop" (cons "󰚝" "#f69a1b")
-        "Music" (cons "󱍙" "#f69a1b")
-        "Pictures" (cons "󰉏" "#f69a1b")
-        "Videos" (cons "󱞊" "#f69a1b")))
-
-;;@doc
-;; Return the icon for the given folder name
-(define (dir-icon name)
-  (define entry (hash-try-get *directories* (trim-end-matches name "/")))
-  (if entry
-    (car entry)
-    "󰉋"
-  )
-)
-
-;;@doc
-;; Return the color of the icon for the given folder name
-(define (dir-icon-color name)
-  (define entry (hash-try-get *directories* (trim-end-matches name "/")))
-  (if entry
-    (cdr entry)
-    "#000000"
-  )
-)
-
-;;@doc
-;; Return the icon for the given file name
-(define (icon name)
-  (define entry (hash-try-get *extensions* (file-extension name)))
-  (if entry
-    (car entry)
-    "?"
-  )
-)
-
-;;@doc
-;; Return the color of the item for the given file name
-(define (icon-color name)
-  (define entry (hash-try-get *extensions* (file-extension name)))
-  (if entry
-    (cdr entry)
-    "#000000"
-  )
-)
-
-;;@doc
-;; Return the file extension of the given file name
-(define (file-extension name)
-  (let ([parts (split-many name ".")])
-    (if (> (length parts) 1)
-        (list-ref parts (- (length parts) 1))
-        ""
-    )
-  )
-)
-
-;;@doc
-;; Create a new style for the given one withe the given foreground color.
-(define (style-with-fg-color style hex)
-  (style-fg style (hex->color hex))
-)
-
-;;@doc
-;; #rrggbb to Color
-(define (hex->color hex)
-  (Color/rgb (hex->byte hex 1) (hex->byte hex 3) (hex->byte hex 5))
-)
-
-;;@doc
-;; Convert a hex string to a byte value
-(define (hex->byte hex start)
-  (string->number (substring hex start (+ start 2)) 16)
 )
