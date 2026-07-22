@@ -41,7 +41,7 @@
 (define *tree-cursor* 0)
 ;;@doc
 ;; TODO needs doc
-(define *window-start* 30)
+(define *window-start* 0)
 ;;@doc
 ;; TODO needs doc
 (define *visible-height* 30)
@@ -84,6 +84,7 @@
 
       ;;Remove the file tree from the render stack
       (pop-last-component-by-name! *tree-component-name*)
+      (pop-last-component-by-name! *event-handler-component-name*)
 
       ;; Reset the editor clip
       ;; Wrapping in this callback is required for some reason, or it will not be applied
@@ -229,6 +230,9 @@
       (define icon (if dir? (dir-icon name) (icon name)))
       (define highlighted? (= abs-idx *tree-cursor*))
       (define row-style (if highlighted? highlight-style text-style))
+      (when highlighted?
+        (frame-set-string! frame x0 y (make-string width #\space) highlight-style)
+      )
 
       (frame-set-string! frame tree-x y prefix row-style)
       (frame-set-string! frame (+ tree-x prefix-w) y icon (style-with-fg-color row-style "#000000"))
@@ -254,10 +258,25 @@
 )
 
 (define (handle-key-event _ event)
-  (when (key-event-escape? event)
-    (set! *tree-focused?* #f)
-    event-result/close
-  )
+  (cond
+    [(key-event-escape? event)
+      (set! *tree-focused?* #f)
+      (pop-last-component-by-name! *event-handler-component-name*)
+      event-result/close
+    ]
 
-  event-result/ignore
+    [(key-event-down? event)
+      (set! *tree-cursor* (+ *tree-cursor* 1))
+      event-result/consume
+    ]
+
+    [(key-event-up? event)
+      (set! *tree-cursor* (- *tree-cursor* 1))
+      event-result/consume
+    ]
+
+    ;; Ignore other inputs and foward them back to helix. This allows
+    ;; to still close the file tree with the key combination set.
+    [else event-result/ignore]
+  )
 )
