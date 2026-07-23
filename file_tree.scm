@@ -166,6 +166,9 @@
 
   (define panel-area (area x0 y0 width height))
 
+  ;; -3 for the search box, and -1 to not clip through the bottom
+  (set! *visible-height* (- height 3 1))
+
   ;; Clear the area wher the file tree will be displayed
   (buffer/clear-with frame panel-area background-style)
 
@@ -174,11 +177,11 @@
   (define search-area (area x0 y0 width 3))
   (block/render frame search-area (make-block background-style border-style "all" "double"))
 
-  (define list-y0 (+ y0 3))
+  (define tree-x0 1)
+  (define tree-y0 (+ y0 3))
 
-  (define tree-x 1)
-
-  ;; TODO i need to determine the files like the forst plugin does
+  ;; TODO scrolling
+  ;; TODO clip the file names
   (let loop ([items *tree*] [row 0])
     (unless (or (null? items) (>= row *visible-height*))
       ;; Get the current element of the list and extract its parameters
@@ -191,7 +194,7 @@
       (define abs-idx (+ *window-start* row))
       (define prefix (string-append indent marker))
       (define dir? (is-dir? path))
-      (define y (+ list-y0 row))
+      (define y (+ tree-y0 row))
       (define prefix-w (string-length prefix))
 
       (define icon (if dir? (dir-icon name) (icon name)))
@@ -201,10 +204,10 @@
         (frame-set-string! frame x0 y (make-string width #\space) highlight-style)
       )
 
-      (frame-set-string! frame tree-x y prefix row-style)
-      (frame-set-string! frame (+ tree-x prefix-w) y icon (style-with-fg-color row-style "#000000"))
+      (frame-set-string! frame tree-x0 y prefix row-style)
+      (frame-set-string! frame (+ tree-x0 prefix-w) y icon (style-with-fg-color row-style "#000000"))
       ;; TODO the name needs truncation, or it will be rendered outside of the tree panel
-      (frame-set-string! frame (+ tree-x prefix-w 2) y name row-style)
+      (frame-set-string! frame (+ tree-x0 prefix-w 2) y name row-style)
 
       (loop (cdr items) (+ row 1))
     )
@@ -242,11 +245,19 @@
       
         [(equal? ch #\j)
           (cursor-down)
-          event-result/consume
         ]
 
         [(equal? ch #\k)
           (cursor-up)
+        ]
+
+        [(equal? ch #\l)
+          (open-tree-dir)
+        ]
+
+        [(equal? ch #\h)
+          ;; TODO when pressing h, the tree should collapse the directory i am currently in,
+          ;; and move the cursor to that directory index
           event-result/consume
         ]
 
@@ -260,6 +271,9 @@
   )
 )
 
+;; TODO when moving up and down, the window start must be moved if I would move out of the visible area,
+;; causing a scroll
+
 (define (cursor-down)
   (when (< *tree-cursor* (- (length *tree*) 1))
     (set! *tree-cursor* (+ *tree-cursor* 1))
@@ -271,5 +285,19 @@
   (when (> *tree-cursor* 0)
     (set! *tree-cursor* (- *tree-cursor* 1))
   )
+  event-result/consume
+)
+
+;; TODO steel has no hashset remove for some reason, so to implement the close, I need to use a hashmap (or implement the remove
+;; the close myself, which would just create a new hashset but without the removed element)
+(define (open-tree-dir)
+  (define entry (list-ref *tree* *tree-cursor*))
+  (define path (list-ref entry 0))
+
+  (when (is-dir? path)
+    (set! *open-directories* (hashset-insert *open-directories* path))
+    (build-tree!)
+  )
+  
   event-result/consume
 )
