@@ -20,9 +20,6 @@
 ;; name: The file name of the file (basically the last part of the path)
 (define *tree* '())
 ;;@doc
-;; All files in the file tree. Used for searching
-(define *tree-all-files* '())
-;;@doc
 ;; Hashmap which stores all directories in the working directory and their open state (as true / false).
 ;; TODO The forest implementation of the tree seems to use false as "open" and "true" as closed
 ;; TODO I think this could be a simple set
@@ -92,36 +89,6 @@
         (lambda () (set-editor-clip-left! 0))
       )
     ]
-  )
-)
-
-(define (scan-files!)
-  (define root (helix-find-workspace))
-  (define root-prefix (string-append root (path-separator)))
-  (define acc '())
-
-  (define (walk dir)
-    (for-each
-      (lambda (p)
-        (define name (file-name p))
-        (if (is-dir? p)
-          (walk p)
-          (set! acc (cons p acc))
-        )
-     )
-     (with-handler (lambda (_) '()) (read-dir dir)))
-    )
-  (walk root)
-
-  (set!
-    *tree-all-files*
-    (sort
-      (map
-        (lambda (p) (substring p (string-length root-prefix) (string-length p)))
-        acc
-      )
-      string<?
-    )
   )
 )
 
@@ -258,25 +225,51 @@
 )
 
 (define (handle-key-event _ event)
+  (define ch (key-event-char event))
   (cond
     [(key-event-escape? event)
       (set! *tree-focused?* #f)
-      (pop-last-component-by-name! *event-handler-component-name*)
       event-result/close
     ]
 
-    [(key-event-down? event)
-      (set! *tree-cursor* (+ *tree-cursor* 1))
-      event-result/consume
+    [(char? ch)
+      (cond
+        ;; Used to still be able to close the tree with Alt+1 when the tree is open and focused.
+        ;; TODO there is also key-event-modifier. I might be able to make this cleaner using this
+        [(equal? ch #\1)
+          event-result/ignore
+        ]
+      
+        [(equal? ch #\j)
+          (cursor-down)
+          event-result/consume
+        ]
+
+        [(equal? ch #\k)
+          (cursor-up)
+          event-result/consume
+        ]
+
+        [else
+          event-result/consume
+        ]
+      )
     ]
 
-    [(key-event-up? event)
-      (set! *tree-cursor* (- *tree-cursor* 1))
-      event-result/consume
-    ]
-
-    ;; Ignore other inputs and foward them back to helix. This allows
-    ;; to still close the file tree with the key combination set.
-    [else event-result/ignore]
+    [else event-result/consume]
   )
+)
+
+(define (cursor-down)
+  (when (< *tree-cursor* (- (length *tree*) 1))
+    (set! *tree-cursor* (+ *tree-cursor* 1))
+  )
+  event-result/consume
+)
+
+(define (cursor-up)
+  (when (> *tree-cursor* 0)
+    (set! *tree-cursor* (- *tree-cursor* 1))
+  )
+  event-result/consume
 )
