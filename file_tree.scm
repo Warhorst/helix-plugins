@@ -18,12 +18,13 @@
 ;; indent: The indent, which is a string of spaces. It defines how much a file is pushed to the right, creating the tree look
 ;; marker: If the path is a dir, this is an arrow indicating the dir is open or closed. For a file, this is an empty string.
 ;; name: The file name of the file (basically the last part of the path)
+;; depth: The depth in the tree. A folder might have depth i and a file in it i + 1
 (define *tree* '())
 ;;@doc
-;; Hashmap which stores all directories in the working directory and their open state (as true / false).
-;; TODO The forest implementation of the tree seems to use false as "open" and "true" as closed
-;; TODO I think this could be a simple set
-(define *open-directories* (hashset))
+;; Hashmap which contains a path as key and void as value. Each path is expected to be a directory
+;; which is currently open.
+;; TODO When steel some day supports hashset closes this could be a simple hashset
+(define *open-directories* (hash))
 ;;@doc
 ;; The current widht of the file tree
 (define *tree-width* 32) ;
@@ -60,7 +61,7 @@
     [(not *tree-open?*)
       (set! *tree-open?* #t)
       (set! *tree-focused?* #t)
-      (set! *open-directories* (hashset-insert *open-directories* (helix-find-workspace)))
+      (set! *open-directories* (hash-insert *open-directories* (helix-find-workspace) void))
       (build-tree!)
       (enqueue-thread-local-callback
         (lambda () (set-editor-clip-left! *tree-width*))
@@ -105,9 +106,9 @@
       )
     )
 
-    (set! result (cons (list path indent marker name) result))
+    (set! result (cons (list path indent marker name depth) result))
 
-    (when (and (is-dir? path) (hashset-contains? *open-directories* path))
+    (when (and (is-dir? path) (hash-contains? *open-directories* path))
       ;; If the directory is currently open, add its children to the tree data
       (for-each
         (lambda (child) (walk child (+ depth 1)))
@@ -127,7 +128,7 @@
 )
 
 (define (dir-marker path)
-  (if (hashset-contains? *open-directories* path)
+  (if (hash-contains? *open-directories* path)
       "▼ "
       "▶ "
   )
@@ -256,8 +257,7 @@
         ]
 
         [(equal? ch #\h)
-          ;; TODO when pressing h, the tree should collapse the directory i am currently in,
-          ;; and move the cursor to that directory index
+          (close-tree-dir)
           event-result/consume
         ]
 
@@ -288,16 +288,61 @@
   event-result/consume
 )
 
-;; TODO steel has no hashset remove for some reason, so to implement the close, I need to use a hashmap (or implement the remove
-;; the close myself, which would just create a new hashset but without the removed element)
 (define (open-tree-dir)
   (define entry (list-ref *tree* *tree-cursor*))
   (define path (list-ref entry 0))
 
   (when (is-dir? path)
-    (set! *open-directories* (hashset-insert *open-directories* path))
+    (set! *open-directories* (hash-insert *open-directories* path void))
     (build-tree!)
   )
   
   event-result/consume
+)
+
+(define (close-tree-dir)
+  (define entry (list-ref *tree* *tree-cursor*))
+  (define path (list-ref entry 0))
+
+  (if (and (is-dir? path) (hash-contains? *open-directories* path))
+    (begin
+      (set! *open-directories* (hash-remove *open-directories* path))
+      (build-tree!)
+    )
+    (set! *tree-cursor* (get-parent-dir-index))
+  )
+
+  event-result/consume
+)
+
+;; Return the index of the parent directory of the file where *tree-cursor*
+;; is currently at.
+(define (get-parent-dir-index)
+  (define (index-inner index current-depth)
+    (define entry (list-ref *tree* index))
+    (define depth (list-ref entry 4))
+
+    (cond
+      ;; Reached root, so just return the root index
+      [(equal? 0 index)
+        0
+      ]
+
+      ;; First entry where the depth is smaller,
+      ;; so this must be the parent
+      [(< depth current-depth)
+        index
+      ]
+
+      ;; Check the file above the current one
+      [else
+        (index-inner (- index 1) current-depth)
+      ]
+    )
+  )
+
+  (define entry (list-ref *tree* *tree-cursor*))
+  (define current-depth (list-ref entry 4))
+
+  (index-inner *tree-cursor* current-depth)
 )
