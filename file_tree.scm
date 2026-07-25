@@ -25,6 +25,7 @@
 ;; Hashmap which contains a path as key and void as value. Each path is expected to be a directory
 ;; which is currently open.
 ;; TODO When steel some day supports hashset closes this could be a simple hashset
+;; TODO when closing a parent directory, all its child directories should be closed
 (define *open-directories* (hash))
 ;;@doc
 ;; The current widht of the file tree
@@ -171,20 +172,16 @@
 
   (define panel-area (area x0 y0 width height))
 
-  ;; -3 for the search box, and -1 to not clip through the bottom
-  (set! *visible-height* (- height 3 1))
+  ;;-1 to not clip through the bottom
+  (set! *visible-height* (- height 2))
 
   ;; Clear the area wher the file tree will be displayed
   (buffer/clear-with frame panel-area background-style)
 
-  ;; TODO maybe don't do 2 blocks, this looks kinda stupid
   (block/render frame panel-area (make-block background-style border-style "all" "double"))
 
-  (define search-area (area x0 y0 width 3))
-  (block/render frame search-area (make-block background-style border-style "all" "double"))
-
   (define tree-x0 1)
-  (define tree-y0 (+ y0 3))
+  (define tree-y0 1)
 
   ;; TODO scrolling
   ;; TODO clip the file names
