@@ -274,13 +274,6 @@
   )
 )
 
-(provide style-with-fg-color)
-;;@doc
-;; Create a new style for the given one withe the given foreground color.
-(define (style-with-fg-color style hex)
-  (style-fg style (hex->color hex))
-)
-
 ;;@doc
 ;; #rrggbb to Color
 (define (hex->color hex)

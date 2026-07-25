@@ -1,6 +1,7 @@
 (require "helix/components.scm")
 (require "helix/editor.scm")
 (require "helix/misc.scm")
+(require (prefix-in helix. "helix/commands.scm"))
 (require "util.scm")
 
 (provide tree-toggle)
@@ -49,6 +50,9 @@
 ;;@doc
 ;; The name of the ui component which handles the file tree controlls
 (define *event-handler-component-name* "event-handler")
+;; @doc
+;; The name of a prompt which might be open to receive user input
+(define *prompt-name* "prompt")
 
 
 ;;@doc
@@ -173,6 +177,7 @@
   ;; Clear the area wher the file tree will be displayed
   (buffer/clear-with frame panel-area background-style)
 
+  ;; TODO maybe don't do 2 blocks, this looks kinda stupid
   (block/render frame panel-area (make-block background-style border-style "all" "double"))
 
   (define search-area (area x0 y0 width 3))
@@ -206,7 +211,7 @@
       )
 
       (frame-set-string! frame tree-x0 y prefix row-style)
-      (frame-set-string! frame (+ tree-x0 prefix-w) y icon (style-with-fg-color row-style "#000000"))
+      (frame-set-string! frame (+ tree-x0 prefix-w) y icon row-style)
       ;; TODO the name needs truncation, or it will be rendered outside of the tree panel
       (frame-set-string! frame (+ tree-x0 prefix-w 2) y name row-style)
 
@@ -232,8 +237,12 @@
   (define ch (key-event-char event))
   (cond
     [(key-event-escape? event)
-      (set! *tree-focused?* #f)
-      event-result/close
+      (unfocus-tree)
+      event-result/consume
+    ]
+
+    [(key-event-enter? event)
+      (open-file)
     ]
 
     [(char? ch)
@@ -246,18 +255,36 @@
       
         [(equal? ch #\j)
           (cursor-down)
+          event-result/consume
         ]
 
         [(equal? ch #\k)
           (cursor-up)
+          event-result/consume
         ]
 
         [(equal? ch #\l)
           (open-tree-dir)
+          event-result/consume
         ]
 
         [(equal? ch #\h)
           (close-tree-dir)
+          event-result/consume
+        ]
+
+        [(equal? ch #\a)
+          (prompt-add)
+          event-result/consume
+        ]
+
+        [(equal? ch #\r)
+          (prompt-rename)
+          event-result/consume
+        ]
+
+        [(equal? ch #\d)
+          (prompt-delete)
           event-result/consume
         ]
 
@@ -278,14 +305,12 @@
   (when (< *tree-cursor* (- (length *tree*) 1))
     (set! *tree-cursor* (+ *tree-cursor* 1))
   )
-  event-result/consume
 )
 
 (define (cursor-up)
   (when (> *tree-cursor* 0)
     (set! *tree-cursor* (- *tree-cursor* 1))
   )
-  event-result/consume
 )
 
 (define (open-tree-dir)
@@ -296,8 +321,6 @@
     (set! *open-directories* (hash-insert *open-directories* path void))
     (build-tree!)
   )
-  
-  event-result/consume
 )
 
 (define (close-tree-dir)
@@ -311,8 +334,6 @@
     )
     (set! *tree-cursor* (get-parent-dir-index))
   )
-
-  event-result/consume
 )
 
 ;; Return the index of the parent directory of the file where *tree-cursor*
@@ -345,4 +366,134 @@
   (define current-depth (list-ref entry 4))
 
   (index-inner *tree-cursor* current-depth)
+)
+
+;; TODO for the add / delete / rename functions, see the functions named "forest-prompt-xxx"
+
+;;@doc
+;; Open the file the tree cursor is currently at, if it is not a directory
+(define (open-file)
+  (define entry (list-ref *tree* *tree-cursor*))
+  (define path (list-ref entry 0))
+
+  (when (is-file? path)
+    (enqueue-thread-local-callback (lambda () (helix.open path)))
+    (unfocus-tree)
+  )
+  
+  event-result/consume
+)
+
+;; TODO because steel sucks, I cannot change fields in a struct and use it neatly as
+;; the holder of my ui state. Instead, I use global variables like a dev from the 50s.
+;; (This comment might be loaded with frustration and anger)
+(struct PromptState ())
+
+;;@doc
+;; The type of the currently open prompt. Must be one of the following: add, rename, delete
+(define *prompt-type* 'add)
+;;@doc
+;; The input the user put into the currently open prompt.
+(define *prompt-input* "")
+
+(define (prompt-add)
+  (open-prompt 'add)
+)
+
+(define (prompt-rename)
+  (open-prompt 'rename)
+)
+
+(define (prompt-delete)
+  (open-prompt 'delete)
+)
+
+(define (open-prompt type)
+  (set! *prompt-type* type)
+  (set! *prompt-input* "")
+
+  (push-component!
+    (new-component!
+      *prompt-name*
+      (PromptState)
+      render-prompt
+      (hash
+        "handle_event" handle-prompt-event
+      )
+    )
+  )
+)
+
+(define (render-prompt _ rect frame)
+  (define x0 20)
+  (define y0 20)
+  (define width 30)
+  (define height 3)
+  (define prompt-area (area x0 y0 width height))
+
+  (define text-style (theme-scope-ref "ui.text"))
+  (define background-style (theme-scope-ref "ui.background"))
+
+  ;; Clear the area wher the file tree will be displayed
+  (buffer/clear-with frame prompt-area background-style)
+  (block/render frame prompt-area (make-block background-style text-style "all" "double"))
+
+  (define title (cond
+    [(equal? 'add *prompt-type*)
+      "Create file"
+    ]
+
+    [(equal? 'rename *prompt-type*)
+      "Rename file"
+    ]
+
+    [(equal? 'delete *prompt-type*)
+      "Delete file"
+    ]
+
+    [else
+      "Unknown type"
+    ]
+  ))
+  
+  (frame-set-string! frame (+ x0 1) y0 title text-style)
+  (frame-set-string! frame (+ x0 1) (+ y0 1) *prompt-input* text-style)
+
+  void
+)
+
+(define (handle-prompt-event _ event)
+  (define ch (key-event-char event))
+  (cond
+    [(key-event-escape? event)
+      event-result/close
+    ]
+
+    [(key-event-enter? event)
+      event-result/close
+    ]
+
+    [(key-event-backspace? event)
+      (define len (string-length *prompt-input*))
+      (when (> len 0)
+        (set! *prompt-input* (substring *prompt-input* 0 (- len 1)))
+      )
+      event-result/consume
+    ]
+
+    [(char? ch)
+      (set! *prompt-input* (string-append *prompt-input* (string ch)))
+      event-result/consume
+    ]
+
+    [else event-result/consume]
+  )
+)
+
+;;@doc
+;; Set the tree unfocused. 
+(define (unfocus-tree)
+  (set! *tree-focused?* #f)
+  ;; Pop the event handler to stop receiving input in the tree
+  (pop-last-component-by-name! *event-handler-component-name*)
 )
