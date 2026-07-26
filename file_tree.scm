@@ -15,11 +15,11 @@
 ;;@doc
 ;; List which contains all currently shown files in the file tree.
 ;; Each entry is another list which consists of the following elements:
-;; path: The path to the file
-;; indent: The indent, which is a string of spaces. It defines how much a file is pushed to the right, creating the tree look
-;; marker: If the path is a dir, this is an arrow indicating the dir is open or closed. For a file, this is an empty string.
-;; name: The file name of the file (basically the last part of the path)
-;; depth: The depth in the tree. A folder might have depth i and a file in it i + 1
+;; 0 path: The path to the file
+;; 1 indent: The indent, which is a string of spaces. It defines how much a file is pushed to the right, creating the tree look
+;; 2 marker: If the path is a dir, this is an arrow indicating the dir is open or closed. For a file, this is an empty string.
+;; 3 name: The file name of the file (basically the last part of the path)
+;; 4 depth: The depth in the tree. A folder might have depth i and a file in it i + 1
 (define *tree* '())
 ;;@doc
 ;; Hashmap which contains a path as key and void as value. Each path is expected to be a directory
@@ -397,8 +397,14 @@
   (open-prompt 'add)
 )
 
+;;@doc
+;; Open a prompt to rename the currently selected file, defined by *tree-cursor*.
+;; If the selected file is the project root, nothing happens.
 (define (prompt-rename)
-  (open-prompt 'rename)
+  ;; The root directory should not be renameable
+  (unless (equal? *tree-cursor* 0)
+    (open-prompt 'rename)
+  )
 )
 
 (define (prompt-delete)
@@ -408,6 +414,13 @@
 (define (open-prompt type)
   (set! *prompt-type* type)
   (set! *prompt-input* "")
+
+  (when (equal? *prompt-type* 'rename)
+    ;; When renaming, fill the input with the current file name to maybe reuse it
+    (define entry (list-ref *tree* *tree-cursor*))
+    (define name (list-ref entry 3))
+    (set! *prompt-input* name)
+  )
 
   (push-component!
     (new-component!
@@ -436,15 +449,15 @@
   (block/render frame prompt-area (make-block background-style text-style "all" "double"))
 
   (define title (cond
-    [(equal? 'add *prompt-type*)
+    [(equal? *prompt-type* 'add)
       "Create file"
     ]
 
-    [(equal? 'rename *prompt-type*)
+    [(equal? *prompt-type* 'rename)
       "Rename file"
     ]
 
-    [(equal? 'delete *prompt-type*)
+    [(equal? *prompt-type* 'delete)
       "Delete file"
     ]
 
@@ -467,7 +480,16 @@
     ]
 
     [(key-event-enter? event)
-      event-result/close
+      (cond
+        [(equal? 'rename *prompt-type*)
+          (rename-selected-file)
+          event-result/close
+        ]
+
+        [else
+          event-result/consume
+        ]
+      )
     ]
 
     [(key-event-backspace? event)
@@ -484,6 +506,20 @@
     ]
 
     [else event-result/consume]
+  )
+)
+
+;;@doc
+;; Rename the file at *tree-cursor* to the contents of the prompt input.
+(define (rename-selected-file)
+  (when (> (string-length *prompt-input*) 0)
+    (define entry (list-ref *tree* *tree-cursor*))
+    (define path (list-ref entry 0))
+    (define name (list-ref entry 3))
+    (define dir (trim-end-matches path (string-append (path-separator) name)))
+    (define new-path (string-append dir (path-separator) *prompt-input*))
+    (rename-file-or-directory! path new-path)
+    (build-tree!)
   )
 )
 
