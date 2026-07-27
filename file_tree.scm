@@ -518,13 +518,24 @@
   )
 )
 
+;;@doc
+;; Create a new file based on the *tree-cursor* and *prompt-input*
 (define (create-new-file)
   (when (> (string-length *prompt-input*) 0)
-    (define parent-index (get-parent-dir-index))
-    (define parent-entry (list-ref *tree* parent-index))
-    (define parent-path (list-ref parent-entry 0))
 
-    (define file-name (string-append parent-path "/" *prompt-input*))
+    (define cursor-path (list-ref (list-ref *tree* *tree-cursor*) 0))
+
+    ;; If I hover over a directory, add the file to that directory.
+    ;; If I hover over a file, put the file in the parent directory of that file
+    (define file-name (if (is-dir? cursor-path)
+      (string-append cursor-path "/" *prompt-input*)
+      (begin
+        (define parent-index (get-parent-dir-index))
+        (define parent-entry (list-ref *tree* parent-index))
+        (define parent-path (list-ref parent-entry 0))
+        (string-append parent-path "/" *prompt-input*)
+      )
+    ))
 
     (if (ends-with? *prompt-input* "/")
       (create-directory! file-name)
