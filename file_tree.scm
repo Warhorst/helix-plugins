@@ -140,7 +140,9 @@
   )
 )
 
-;; dirs before files, alphabetic oder
+;; TODO Add a list of files which should be listed before other files in a directory. Current candidates: mod.rs, lib.rs, markdown files
+;;@doc
+;; Sort the given list of paths. First the directories are listed in alphabetical order, then the files
 (define (sort-path-entries lst)
   (define dirs (sort (filter is-dir? lst) string<?))
   (define files (sort (filter (lambda (p) (not (is-dir? p))) lst) string<?))
