@@ -3,6 +3,7 @@
 (require "helix/misc.scm")
 (require (prefix-in helix. "helix/commands.scm"))
 (require "util.scm")
+(#%require-dylib "libhelix_plugins_native" (only-in create-file))
 
 (provide tree-toggle)
 
@@ -333,6 +334,7 @@
   )
 )
 
+;;@doc
 ;; Return the index of the parent directory of the file where *tree-cursor*
 ;; is currently at.
 (define (get-parent-dir-index)
@@ -481,6 +483,11 @@
 
     [(key-event-enter? event)
       (cond
+        [(equal? 'add *prompt-type*)
+          (create-new-file)
+          event-result/close
+        ]
+      
         [(equal? 'rename *prompt-type*)
           (rename-selected-file)
           event-result/close
@@ -506,6 +513,23 @@
     ]
 
     [else event-result/consume]
+  )
+)
+
+(define (create-new-file)
+  (when (> (string-length *prompt-input*) 0)
+    (define parent-index (get-parent-dir-index))
+    (define parent-entry (list-ref *tree* parent-index))
+    (define parent-path (list-ref parent-entry 0))
+
+    (define file-name (string-append parent-path "/" *prompt-input*))
+
+    (if (ends-with? *prompt-input* "/")
+      (create-directory! file-name)
+      (create-file file-name)
+    )
+
+    (build-tree!)
   )
 )
 

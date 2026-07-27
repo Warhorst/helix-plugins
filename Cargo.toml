@@ -1,0 +1,12 @@
+[package]
+name = "helix-plugins"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "helix_plugins_native"
+crate-type = ["cdylib"]
+
+[dependencies]
+steel-core = {git = "https://github.com/mattwparas/steel.git", tag = "v0.8.2", features = ["dylibs", "sync"]}
+abi_stable = "0.11.1"
