@@ -394,6 +394,9 @@
 ;; The type of the currently open prompt. Must be one of the following: add, rename, delete
 (define *prompt-type* 'add)
 ;;@doc
+;; The title which is displayed on top of the prompt.
+(define *prompt-title* "")
+;;@doc
 ;; The input the user put into the currently open prompt.
 (define *prompt-input* "")
 
@@ -411,19 +414,59 @@
   )
 )
 
+;;@doc
+;; Open a prompt to delete the currently selected file, defined by *tree-cursor*.
+;; If the selected file is the project root, nothing happens.
 (define (prompt-delete)
-  (open-prompt 'delete)
+  ;; The root directory should not be deletable
+  (unless (equal? *tree-cursor* 0)
+    (open-prompt 'delete)
+  )
 )
 
 (define (open-prompt type)
   (set! *prompt-type* type)
+  (set! *prompt-title* "")
   (set! *prompt-input* "")
 
+  (when (equal? *prompt-type* 'add)
+    (define cursor-entry (list-ref *tree* *tree-cursor*))
+    (define cursor-path (list-ref cursor-entry 0))
+    (define target-dir (if (is-dir? cursor-path)
+      (string-append (list-ref cursor-entry 3))
+      (begin
+        (define parent-index (get-parent-dir-index))
+        (define parent-entry (list-ref *tree* parent-index))
+        (define parent-dir (list-ref parent-entry 3))
+        parent-dir
+      )
+    ))
+
+    (set! *prompt-title* (string-append "Add file to directory '" target-dir "/'"))
+  )
+
   (when (equal? *prompt-type* 'rename)
-    ;; When renaming, fill the input with the current file name to maybe reuse it
     (define entry (list-ref *tree* *tree-cursor*))
     (define name (list-ref entry 3))
+    (set! *prompt-title* "Rename file")
     (set! *prompt-input* name)
+  )
+
+  (when (equal? *prompt-type* 'delete)
+    (define entry (list-ref *tree* *tree-cursor*))
+    (define path (list-ref entry 0))
+    (define name (list-ref entry 3))
+
+    (if (is-file? path)
+      (begin
+        (set! *prompt-title* (string-append "Do you want to delete the file '" name "'?"))
+        (set! *prompt-input* name)
+      )
+      (begin
+        (set! *prompt-title* (string-append "Do you want to delete the directory '" name "/' and all its content?"))
+        (set! *prompt-input* (string-append name "/"))
+      )
+    )
   )
 
   (push-component!
@@ -439,10 +482,13 @@
 )
 
 (define (render-prompt _ rect frame)
-  (define x0 20)
-  (define y0 20)
-  (define width 30)
-  (define height 3)
+  (define x0 (+ *tree-width* 3))
+  (define y0 *tree-cursor*)
+  ;; At least 30 tiles large, or if larger the maximum of the title or the input length.
+  ;; +2 at the title for the prompt borders
+  ;; +4 at the input for the prompt borders and the "> " string
+  (define width (max (+ (string-length *prompt-title*) 2) (+ (string-length *prompt-input*) 4) 30))
+  (define height 4)
   (define prompt-area (area x0 y0 width height))
 
   (define text-style (theme-scope-ref "ui.text"))
@@ -451,27 +497,9 @@
   ;; Clear the area wher the file tree will be displayed
   (buffer/clear-with frame prompt-area background-style)
   (block/render frame prompt-area (make-block background-style text-style "all" "double"))
-
-  (define title (cond
-    [(equal? *prompt-type* 'add)
-      "Create file"
-    ]
-
-    [(equal? *prompt-type* 'rename)
-      "Rename file"
-    ]
-
-    [(equal? *prompt-type* 'delete)
-      "Delete file"
-    ]
-
-    [else
-      "Unknown type"
-    ]
-  ))
   
-  (frame-set-string! frame (+ x0 1) y0 title text-style)
-  (frame-set-string! frame (+ x0 1) (+ y0 1) *prompt-input* text-style)
+  (frame-set-string! frame (+ x0 1) (+ y0 1) *prompt-title* text-style)
+  (frame-set-string! frame (+ x0 1) (+ y0 2) (string-append "> " *prompt-input*) text-style)
 
   void
 )
@@ -495,6 +523,11 @@
           event-result/close
         ]
 
+        [(equal? 'delete *prompt-type*)
+          (delete-selected-file)
+          event-result/close
+        ]
+
         [else
           event-result/consume
         ]
@@ -509,7 +542,7 @@
       event-result/consume
     ]
 
-    [(char? ch)
+    [(and (char? ch) (not (equal? 'delete *prompt-type*)))
       (set! *prompt-input* (string-append *prompt-input* (string ch)))
       event-result/consume
     ]
@@ -558,6 +591,22 @@
     (rename-file-or-directory! path new-path)
     (build-tree!)
   )
+)
+
+;;@doc
+;; Delete the selected file or directory at *tree-cursor*
+(define (delete-selected-file)
+  (define path (list-ref (list-ref *tree* *tree-cursor*) 0))
+
+  (if (is-file? path)
+    (delete-file! path)
+    (begin
+      (delete-directory! path)
+      ;; TODO this must recursively remove all the open sub-directories from the open directories
+      (set! *open-directories* (hash-remove *open-directories* path))
+    )
+  )
+  (build-tree!)
 )
 
 ;;@doc
