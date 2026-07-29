@@ -278,6 +278,11 @@
           event-result/consume
         ]
 
+        [(equal? ch #\R)
+          (build-tree!)
+          event-result/consume
+        ]
+        
         [(equal? ch #\r)
           (prompt-rename)
           event-result/consume
