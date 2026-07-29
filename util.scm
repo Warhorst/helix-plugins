@@ -275,15 +275,3 @@
     )
   )
 )
-
-;;@doc
-;; #rrggbb to Color
-(define (hex->color hex)
-  (Color/rgb (hex->byte hex 1) (hex->byte hex 3) (hex->byte hex 5))
-)
-
-;;@doc
-;; Convert a hex string to a byte value
-(define (hex->byte hex start)
-  (string->number (substring hex start (+ start 2)) 16)
-)

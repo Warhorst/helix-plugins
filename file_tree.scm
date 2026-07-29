@@ -47,6 +47,10 @@
 ;; TODO needs doc
 (define *visible-height* 30)
 ;;@doc
+;; The path (string) to a directory or file which is marked for movement.
+;; Set to #f if nothing is currently marked.
+(define *marked-file* #f)
+;;@doc
 ;; The name of the file tree ui component
 (define *tree-component-name* "file-tree")
 ;;@doc
@@ -101,6 +105,7 @@
 
 (define (build-tree!)
   (define result '())
+  (unmark-file)
 
   (define (walk path depth)
     (define name (file-name path))
@@ -171,6 +176,7 @@
   (define text-style (theme-scope-ref "ui.text"))
   (define background-style (theme-scope-ref "ui.background"))
   (define highlight-style (theme-scope-ref "ui.menu.selected"))
+  (define marked-style (style-fg (theme-scope-ref "ui.highlight") Color/Cyan))
   (define border-style (if *tree-focused?* text-style background-style))
 
   (define panel-area (area x0 y0 width height))
@@ -204,16 +210,20 @@
       (define prefix-w (string-length prefix))
 
       (define icon (if dir? (dir-icon name) (icon name)))
+      (define marked? (equal? path *marked-file*))
       (define highlighted? (= abs-idx *tree-cursor*))
       (define row-style (if highlighted? highlight-style text-style))
+
       (when highlighted?
-        (frame-set-string! frame x0 y (make-string width #\space) highlight-style)
+        (frame-set-string! frame (+ x0 1) y (make-string (- width 2) #\space) highlight-style)
       )
 
-      (frame-set-string! frame tree-x0 y prefix row-style)
-      (frame-set-string! frame (+ tree-x0 prefix-w) y icon row-style)
+      (define text-style (if marked? marked-style row-style))
+
+      (frame-set-string! frame tree-x0 y prefix text-style)
+      (frame-set-string! frame (+ tree-x0 prefix-w) y icon text-style)
       ;; TODO the name needs truncation, or it will be rendered outside of the tree panel
-      (frame-set-string! frame (+ tree-x0 prefix-w 2) y name row-style)
+      (frame-set-string! frame (+ tree-x0 prefix-w 2) y name text-style)
 
       (loop (cdr items) (+ row 1))
     )
@@ -290,6 +300,11 @@
 
         [(equal? ch #\d)
           (prompt-delete)
+          event-result/consume
+        ]
+
+        [(equal? ch #\x)
+          (mark-selected-file)
           event-result/consume
         ]
 
@@ -629,6 +644,25 @@
     )
   )
   (build-tree!)
+)
+
+;;@doc
+;; Mark the file which is currently selected by *tree-cursor*.
+;; If the same file is marked again, it gets unmarked.
+(define (mark-selected-file)
+  (define path (list-ref (list-ref *tree* *tree-cursor*) 0))
+
+  (if (equal? path *marked-file*)
+    (set! *marked-file* #f)
+    (set! *marked-file* path)
+  )
+)
+
+;;@doc
+;; Unmark the currently selected file.
+;; Has no effect if no file is currently marked.
+(define (unmark-file)
+  (set! *marked-file* #f)
 )
 
 ;;@doc
