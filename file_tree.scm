@@ -313,6 +313,8 @@
   )
 )
 
+;;@doc
+;; Open the directory at *tree-cursor*
 (define (open-tree-dir)
   (define entry (list-ref *tree* *tree-cursor*))
   (define path (list-ref entry 0))
@@ -323,13 +325,28 @@
   )
 )
 
+;;@doc
+;; Close the directory at *tree-cursor*. This closes
+;; all sub-directories of the directory.
+;; If *tree-cursor* is currently not at a directory, it sets the cursor
+;; to the index of its parent instead.
 (define (close-tree-dir)
   (define entry (list-ref *tree* *tree-cursor*))
   (define path (list-ref entry 0))
 
   (if (and (is-dir? path) (hash-contains? *open-directories* path))
     (begin
-      (set! *open-directories* (hash-remove *open-directories* path))
+      (define currently-open-paths (hash-keys->list *open-directories*))
+
+      (for-each
+        (lambda (open)
+          (when (starts-with? open path)
+            (set! *open-directories* (hash-remove *open-directories* open))
+          )
+        )
+        currently-open-paths
+      )
+
       (build-tree!)
     )
     (set! *tree-cursor* (get-parent-dir-index))
