@@ -30,7 +30,13 @@
 (define *open-directories* (hash))
 ;;@doc
 ;; The current widht of the file tree
-(define *tree-width* 32) ;
+(define *tree-width* 32)
+;;@doc
+;; The minimum withd the rendered file tree can have
+(define *min-tree-width* 22)
+;;@doc
+;; The maximum width the rendred file tree can have
+(define *max-tree-widht* 50)
 ;;@doc
 ;; The min widht of the file tree
 (define *tree-min-width* 16)
@@ -310,6 +316,16 @@
 
         [(equal? ch #\p)
           (prompt-move)
+          event-result/consume
+        ]
+
+        [(equal? ch #\-)
+          (decrease-width)
+          event-result/consume
+        ]
+
+        [(equal? ch #\+)
+          (increase-width)
           event-result/consume
         ]
 
@@ -714,6 +730,28 @@
 ;; Has no effect if no file is currently marked.
 (define (unmark-file)
   (set! *marked-file* #f)
+)
+
+;;@doc
+;; Reduce the width of the tree, unless the minimum width is reached.
+(define (decrease-width)
+  (when (> *tree-width* *min-tree-width*)
+    (set! *tree-width* (- *tree-width* 1))
+    (enqueue-thread-local-callback
+      (lambda () (set-editor-clip-left! *tree-width*))
+    )
+  )
+)
+
+;;@doc
+;; Increase the width of the tree, unless the maximum widht is reached.
+(define (increase-width)
+  (when (< *tree-width* *max-tree-widht*)
+    (set! *tree-width* (+ *tree-width* 1))
+    (enqueue-thread-local-callback
+      (lambda () (set-editor-clip-left! *tree-width*))
+    )
+  )
 )
 
 ;;@doc
