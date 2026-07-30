@@ -308,6 +308,11 @@
           event-result/consume
         ]
 
+        [(equal? ch #\p)
+          (prompt-move)
+          event-result/consume
+        ]
+
         [else
           event-result/consume
         ]
@@ -428,7 +433,7 @@
 (struct PromptState ())
 
 ;;@doc
-;; The type of the currently open prompt. Must be one of the following: add, rename, delete
+;; The type of the currently open prompt. Must be one of the following: add, rename, delete, move
 (define *prompt-type* 'add)
 ;;@doc
 ;; The title which is displayed on top of the prompt.
@@ -451,6 +456,7 @@
   )
 )
 
+;; TODO when deleting a file, it should be closed if a buffer for it exists
 ;;@doc
 ;; Open a prompt to delete the currently selected file, defined by *tree-cursor*.
 ;; If the selected file is the project root, nothing happens.
@@ -461,49 +467,50 @@
   )
 )
 
+(define (prompt-move)
+  (when *marked-file*
+    (open-prompt 'move)
+  )
+)
+
 (define (open-prompt type)
   (set! *prompt-type* type)
   (set! *prompt-title* "")
   (set! *prompt-input* "")
 
-  (when (equal? *prompt-type* 'add)
-    (define cursor-entry (list-ref *tree* *tree-cursor*))
-    (define cursor-path (list-ref cursor-entry 0))
-    (define target-dir (if (is-dir? cursor-path)
-      (string-append (list-ref cursor-entry 3))
-      (begin
-        (define parent-index (get-parent-dir-index))
-        (define parent-entry (list-ref *tree* parent-index))
-        (define parent-dir (list-ref parent-entry 3))
-        parent-dir
+  (cond
+    [(equal? *prompt-type* 'add)
+      (set! *prompt-title* (string-append "Add file to directory '" (get-add-move-target-name) "/'"))
+    ]
+
+    [(equal? *prompt-type* 'rename)
+      (define entry (list-ref *tree* *tree-cursor*))
+      (define name (list-ref entry 3))
+      (set! *prompt-title* "Rename file")
+      (set! *prompt-input* name)
+    ]
+
+    [(equal? *prompt-type* 'delete)
+      (define entry (list-ref *tree* *tree-cursor*))
+      (define path (list-ref entry 0))
+      (define name (list-ref entry 3))
+
+      (if (is-file? path)
+        (begin
+          (set! *prompt-title* (string-append "Do you want to delete the file '" name "'?"))
+          (set! *prompt-input* name)
+        )
+        (begin
+          (set! *prompt-title* (string-append "Do you want to delete the directory '" name "/' and all its content?"))
+          (set! *prompt-input* (string-append name "/"))
+        )
       )
-    ))
+    ]
 
-    (set! *prompt-title* (string-append "Add file to directory '" target-dir "/'"))
-  )
-
-  (when (equal? *prompt-type* 'rename)
-    (define entry (list-ref *tree* *tree-cursor*))
-    (define name (list-ref entry 3))
-    (set! *prompt-title* "Rename file")
-    (set! *prompt-input* name)
-  )
-
-  (when (equal? *prompt-type* 'delete)
-    (define entry (list-ref *tree* *tree-cursor*))
-    (define path (list-ref entry 0))
-    (define name (list-ref entry 3))
-
-    (if (is-file? path)
-      (begin
-        (set! *prompt-title* (string-append "Do you want to delete the file '" name "'?"))
-        (set! *prompt-input* name)
-      )
-      (begin
-        (set! *prompt-title* (string-append "Do you want to delete the directory '" name "/' and all its content?"))
-        (set! *prompt-input* (string-append name "/"))
-      )
-    )
+    [(equal? *prompt-type* 'move)
+      (set! *prompt-title* (string-append "Move file to directory '" (get-add-move-target-dir) "/'?"))
+      (set! *prompt-input* *marked-file*)
+    ]
   )
 
   (push-component!
@@ -518,6 +525,7 @@
   )
 )
 
+
 (define (render-prompt _ rect frame)
   (define x0 (+ *tree-width* 3))
   (define y0 *tree-cursor*)
@@ -525,7 +533,7 @@
   ;; +2 at the title for the prompt borders
   ;; +4 at the input for the prompt borders and the "> " string
   (define width (max (+ (string-length *prompt-title*) 2) (+ (string-length *prompt-input*) 4) 30))
-  (define height 4)
+  (define height 6)
   (define prompt-area (area x0 y0 width height))
 
   (define text-style (theme-scope-ref "ui.text"))
@@ -537,8 +545,7 @@
   
   (frame-set-string! frame (+ x0 1) (+ y0 1) *prompt-title* text-style)
   (frame-set-string! frame (+ x0 1) (+ y0 2) (string-append "> " *prompt-input*) text-style)
-
-  void
+  (frame-set-string! frame (+ x0 1) (+ y0 4) "<Enter> Confirm <Esc> Cancel" text-style)
 )
 
 (define (handle-prompt-event _ event)
@@ -562,6 +569,11 @@
 
         [(equal? 'delete *prompt-type*)
           (delete-selected-file)
+          event-result/close
+        ]
+
+        [(equal? 'move *prompt-type*)
+          (move-file)
           event-result/close
         ]
 
@@ -594,18 +606,7 @@
   (when (> (string-length *prompt-input*) 0)
 
     (define cursor-path (list-ref (list-ref *tree* *tree-cursor*) 0))
-
-    ;; If I hover over a directory, add the file to that directory.
-    ;; If I hover over a file, put the file in the parent directory of that file
-    (define file-name (if (is-dir? cursor-path)
-      (string-append cursor-path "/" *prompt-input*)
-      (begin
-        (define parent-index (get-parent-dir-index))
-        (define parent-entry (list-ref *tree* parent-index))
-        (define parent-path (list-ref parent-entry 0))
-        (string-append parent-path "/" *prompt-input*)
-      )
-    ))
+    (define file-name (string-append (get-add-move-target-dir) "/" *prompt-input*))
 
     (if (ends-with? *prompt-input* "/")
       (create-directory! file-name)
@@ -644,6 +645,56 @@
     )
   )
   (build-tree!)
+)
+
+;;@doc
+;; Move the currently marked file to the directory the cursor is currently targeting.
+(define (move-file)
+  (define marked-file-name (file-name *marked-file*))
+  (define target-file (string-append (get-add-move-target-dir) "/" marked-file-name))
+
+  (rename-file-or-directory! *marked-file* target-file)
+  (build-tree!)
+)
+
+;;@doc
+;; Return the target directory name for add and move operations, based
+;; on the current *tree-cursor*. If the cursor is on a directory,
+;; the directory is the target. If not, the parent directory of the hovered
+;; file is.
+(define (get-add-move-target-name)
+    (define cursor-entry (list-ref *tree* *tree-cursor*))
+    (define cursor-path (list-ref cursor-entry 0))
+
+    (if (is-dir? cursor-path)
+      (string-append (list-ref cursor-entry 3))
+      (begin
+        (define parent-index (get-parent-dir-index))
+        (define parent-entry (list-ref *tree* parent-index))
+        (define parent-dir (list-ref parent-entry 3))
+        parent-dir
+      )
+    )
+)
+
+;;@doc
+;; Return the target directory path for add and move operations, based
+;; on the current *tree-cursor*. If the cursor is on a directory,
+;; the directory is the target. If not, the parent directory of the hovered
+;; file is.
+(define (get-add-move-target-dir)
+    (define cursor-entry (list-ref *tree* *tree-cursor*))
+    (define cursor-path (list-ref cursor-entry 0))
+
+    (if (is-dir? cursor-path)
+      (string-append (list-ref cursor-entry 0))
+      (begin
+        (define parent-index (get-parent-dir-index))
+        (define parent-entry (list-ref *tree* parent-index))
+        (define parent-dir (list-ref parent-entry 0))
+        parent-dir
+      )
+    )
 )
 
 ;;@doc
