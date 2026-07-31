@@ -25,8 +25,6 @@
 ;;@doc
 ;; Hashmap which contains a path as key and void as value. Each path is expected to be a directory
 ;; which is currently open.
-;; TODO When steel some day supports hashset closes this could be a simple hashset
-;; TODO when closing a parent directory, all its child directories should be closed
 (define *open-directories* (hash))
 ;;@doc
 ;; The current widht of the file tree
@@ -65,6 +63,9 @@
 ;; @doc
 ;; The name of a prompt which might be open to receive user input
 (define *prompt-name* "prompt")
+;;@doc
+;; A set of file names which should be listed before other files in the file tree
+(define *important-files* (hashset "mod.rs" "lib.rs" "main.rs"))
 
 
 ;;@doc
@@ -151,13 +152,24 @@
   )
 )
 
-;; TODO Add a list of files which should be listed before other files in a directory. Current candidates: mod.rs, lib.rs, markdown files
 ;;@doc
-;; Sort the given list of paths. First the directories are listed in alphabetical order, then the files
+;; Sort the given list of paths. First the directories are listed in alphabetical order, then the
+;; important files, then the remaining files.
 (define (sort-path-entries lst)
+  ;; Dirs first
   (define dirs (sort (filter is-dir? lst) string<?))
-  (define files (sort (filter (lambda (p) (not (is-dir? p))) lst) string<?))
-  (append dirs files)
+
+  ;; Important files second
+  (define important-files (sort (filter (
+    lambda (p) (and (is-file? p) (hashset-contains? *important-files* (file-name p)))
+  ) lst) string<?))
+
+  ;; All other files last
+  (define files (sort (filter (
+    lambda (p) (and (is-file? p) (not (hashset-contains? *important-files* (file-name p))))
+  ) lst) string<?))
+
+  (append dirs important-files files)
 )
 
 (struct TreeState ())
@@ -427,8 +439,6 @@
   (index-inner *tree-cursor* current-depth)
 )
 
-;; TODO for the add / delete / rename functions, see the functions named "forest-prompt-xxx"
-
 ;;@doc
 ;; Open the file the tree cursor is currently at, if it is not a directory
 (define (open-file)
@@ -443,9 +453,6 @@
   event-result/consume
 )
 
-;; TODO because steel sucks, I cannot change fields in a struct and use it neatly as
-;; the holder of my ui state. Instead, I use global variables like a dev from the 50s.
-;; (This comment might be loaded with frustration and anger)
 (struct PromptState ())
 
 ;;@doc
