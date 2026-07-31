@@ -662,9 +662,11 @@
   (if (is-file? path)
     (delete-file! path)
     (begin
+      ;; This might rebuild the tree twice (once here when closing the directories and
+      ;; once at the end of this function), but this should be fine as deleting a tree does
+      ;; not happen that often.
       (delete-directory! path)
-      ;; TODO this must recursively remove all the open sub-directories from the open directories
-      (set! *open-directories* (hash-remove *open-directories* path))
+      (close-tree-dir)
     )
   )
   (build-tree!)
