@@ -238,10 +238,13 @@
 
       (define text-style (if marked? marked-style row-style))
 
-      (frame-set-string! frame tree-x0 y prefix text-style)
-      (frame-set-string! frame (+ tree-x0 prefix-w) y icon text-style)
-      ;; TODO the name needs truncation, or it will be rendered outside of the tree panel
-      (frame-set-string! frame (+ tree-x0 prefix-w 2) y name text-style)
+      (define line (string-append prefix icon " " name))
+      (when (> (string-length line) (- *tree-width* 2))
+        ;; The line is longer than the tree width, so cut it
+        (set! line (substring line 0 (- *tree-width* 2)))
+      )
+      
+      (frame-set-string! frame tree-x0 y line text-style)
 
       (loop (cdr items) (+ row 1))
     )
