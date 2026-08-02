@@ -30,11 +30,14 @@
 ;; The current widht of the file tree
 (define *tree-width* 32)
 ;;@doc
+;; The current height of the tree. This might get updated when the height of the terminal frame changes.
+(define *tree-height* 30)
+;;@doc
 ;; The minimum withd the rendered file tree can have
 (define *min-tree-width* 22)
 ;;@doc
 ;; The maximum width the rendred file tree can have
-(define *max-tree-widht* 50)
+(define *max-tree-widht* 60)
 ;;@doc
 ;; The min widht of the file tree
 (define *tree-min-width* 16)
@@ -44,12 +47,6 @@
 ;;@doc
 ;; The position of the cursor in the file tree (the currently selected row)
 (define *tree-cursor* 0)
-;;@doc
-;; TODO needs doc
-(define *window-start* 0)
-;;@doc
-;; TODO needs doc
-(define *visible-height* 30)
 ;;@doc
 ;; The path (string) to a directory or file which is marked for movement.
 ;; Set to #f if nothing is currently marked.
@@ -200,20 +197,19 @@
   (define panel-area (area x0 y0 width height))
 
   ;;-1 to not clip through the bottom
-  (set! *visible-height* (- height 2))
+  (set! *tree-height* (- height 2))
 
   ;; Clear the area wher the file tree will be displayed
   (buffer/clear-with frame panel-area background-style)
 
   (block/render frame panel-area (make-block background-style border-style "all" "double"))
 
-  (define tree-x0 1)
-  (define tree-y0 1)
+  (define root-x 1)
+  (define root-y 1)
 
   ;; TODO scrolling
-  ;; TODO clip the file names
   (let loop ([items *tree*] [row 0])
-    (unless (or (null? items) (>= row *visible-height*))
+    (unless (or (null? items) (>= row *tree-height*))
       ;; Get the current element of the list and extract its parameters
       (define entry (car items))
       (define path (list-ref entry 0))
@@ -221,15 +217,11 @@
       (define marker (list-ref entry 2))
       (define name (list-ref entry 3))
 
-      (define abs-idx (+ *window-start* row))
+      (define y (+ root-y row))
       (define prefix (string-append indent marker))
-      (define dir? (is-dir? path))
-      (define y (+ tree-y0 row))
-      (define prefix-w (string-length prefix))
-
-      (define icon (if dir? (dir-icon name) (icon name)))
+      (define icon (if (is-dir? path) (dir-icon name) (icon name)))
       (define marked? (equal? path *marked-file*))
-      (define highlighted? (= abs-idx *tree-cursor*))
+      (define highlighted? (= row *tree-cursor*))
       (define row-style (if highlighted? highlight-style text-style))
 
       (when highlighted?
@@ -244,7 +236,7 @@
         (set! line (substring line 0 (- *tree-width* 2)))
       )
       
-      (frame-set-string! frame tree-x0 y line text-style)
+      (frame-set-string! frame root-x y line text-style)
 
       (loop (cdr items) (+ row 1))
     )
