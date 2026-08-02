@@ -33,6 +33,10 @@
 ;; The current height of the tree. This might get updated when the height of the terminal frame changes.
 (define *tree-height* 30)
 ;;@doc
+;; The current number of rows in the tree that will be skipped before the tree is rendered
+;; in its component. This is used to enable scrolling.
+(define *tree-render-offset* 0)
+;;@doc
 ;; The minimum withd the rendered file tree can have
 (define *min-tree-width* 22)
 ;;@doc
@@ -207,39 +211,47 @@
   (define root-x 1)
   (define root-y 1)
 
-  ;; TODO scrolling
-  (let loop ([items *tree*] [row 0])
-    (unless (or (null? items) (>= row *tree-height*))
-      ;; Get the current element of the list and extract its parameters
-      (define entry (car items))
-      (define path (list-ref entry 0))
-      (define indent (list-ref entry 1))
-      (define marker (list-ref entry 2))
-      (define name (list-ref entry 3))
-
-      (define y (+ root-y row))
-      (define prefix (string-append indent marker))
-      (define icon (if (is-dir? path) (dir-icon name) (icon name)))
-      (define marked? (equal? path *marked-file*))
-      (define highlighted? (= row *tree-cursor*))
-      (define row-style (if highlighted? highlight-style text-style))
-
-      (when highlighted?
-        (frame-set-string! frame (+ x0 1) y (make-string (- width 2) #\space) highlight-style)
-      )
-
-      (define text-style (if marked? marked-style row-style))
-
-      (define line (string-append prefix icon " " name))
-      (when (> (string-length line) (- *tree-width* 2))
-        ;; The line is longer than the tree width, so cut it
-        (set! line (substring line 0 (- *tree-width* 2)))
-      )
-      
-      (frame-set-string! frame root-x y line text-style)
-
-      (loop (cdr items) (+ row 1))
+  (define (in-render-area row)
+    (and
+      (>= row *tree-render-offset*)
+      (< row (+ *tree-render-offset* *tree-height*))
     )
+  )
+
+  (define row 0)
+  (for-each
+    (lambda (entry)
+      (when (in-render-area row)
+        (define path (list-ref entry 0))
+        (define indent (list-ref entry 1))
+        (define marker (list-ref entry 2))
+        (define name (list-ref entry 3))
+
+        (define y (+ root-y row))
+        (define prefix (string-append indent marker))
+        (define icon (if (is-dir? path) (dir-icon name) (icon name)))
+        (define marked? (equal? path *marked-file*))
+        (define highlighted? (= row *tree-cursor*))
+        (define row-style (if highlighted? highlight-style text-style))
+
+        (when highlighted?
+          (frame-set-string! frame (+ x0 1) y (make-string (- width 2) #\space) highlight-style)
+        )
+
+        (define text-style (if marked? marked-style row-style))
+
+        (define line (string-append prefix icon " " name))
+        (when (> (string-length line) (- *tree-width* 2))
+          ;; The line is longer than the tree width, so cut it
+          (set! line (substring line 0 (- *tree-width* 2)))
+        )
+    
+        (frame-set-string! frame root-x y line text-style)
+      )
+
+      (set! row (+ row 1))
+    )
+    *tree*
   )
 )
 
@@ -346,18 +358,41 @@
   )
 )
 
-;; TODO when moving up and down, the window start must be moved if I would move out of the visible area,
-;; causing a scroll
-
 (define (cursor-down)
   (when (< *tree-cursor* (- (length *tree*) 1))
-    (set! *tree-cursor* (+ *tree-cursor* 1))
+    (set-cursor! (+ *tree-cursor* 1))
   )
 )
 
 (define (cursor-up)
   (when (> *tree-cursor* 0)
-    (set! *tree-cursor* (- *tree-cursor* 1))
+    (set-cursor! (- *tree-cursor* 1))
+  )
+)
+
+;;@doc
+;; Set the *tree-cursor* to the given row. This will update the *tree-render-offset*
+;; if the cursor would be out of the render area
+(define (set-cursor! row)
+  (set! *tree-cursor* row)
+
+  (define render-end (+ *tree-render-offset* *tree-height*))
+
+  (cond
+    [(< *tree-cursor* *tree-render-offset*)
+      ;; The cursor is above the render area, so move the render area up on the level of the cursor.
+      (set! *tree-render-offset* *tree-cursor*)
+    ]
+
+    [(> *tree-cursor* render-end)
+      ;; The cursor is below the render area, so move the render area down to include the cursor
+      (define diff (- *tree-cursor* render-end))
+      (set! *tree-render-offset* (+ *tree-render-offset* diff))  
+    ]
+
+    [else
+      ;; Nothing to do, the cursor is in the render area
+    ]
   )
 )
 
@@ -397,7 +432,7 @@
 
       (build-tree!)
     )
-    (set! *tree-cursor* (get-parent-dir-index))
+    (set-cursor! (get-parent-dir-index))
   )
 )
 
