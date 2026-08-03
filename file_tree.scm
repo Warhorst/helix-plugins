@@ -219,6 +219,7 @@
   )
 
   (define row 0)
+  (define y root-y)
   (for-each
     (lambda (entry)
       (when (in-render-area row)
@@ -227,7 +228,6 @@
         (define marker (list-ref entry 2))
         (define name (list-ref entry 3))
 
-        (define y (+ root-y row))
         (define prefix (string-append indent marker))
         (define icon (if (is-dir? path) (dir-icon name) (icon name)))
         (define marked? (equal? path *marked-file*))
@@ -247,6 +247,8 @@
         )
     
         (frame-set-string! frame root-x y line text-style)
+
+        (set! y (+ y 1))
       )
 
       (set! row (+ row 1))
@@ -376,7 +378,7 @@
 (define (set-cursor! row)
   (set! *tree-cursor* row)
 
-  (define render-end (+ *tree-render-offset* *tree-height*))
+  (define render-end (- (+ *tree-render-offset* *tree-height*) 1))
 
   (cond
     [(< *tree-cursor* *tree-render-offset*)
