@@ -6,6 +6,7 @@
 (#%require-dylib "libhelix_plugins_native" (only-in create-file))
 
 (provide tree-toggle)
+(provide reveal-file)
 
 ;;@doc
 ;; Is the file tree currently open?
@@ -285,7 +286,7 @@
     [(char? ch)
       (cond
         ;; Used to still be able to close the tree with Alt+1 when the tree is open and focused.
-        ;; TODO there is also key-event-modifier. I might be able to make this cleaner using this
+        ;; TODO there is also key-event-modifier. I might be able to make this cleaner using this. 
         [(equal? ch #\1)
           event-result/ignore
         ]
@@ -801,4 +802,48 @@
   (set! *tree-focused?* #f)
   ;; Pop the event handler to stop receiving input in the tree
   (pop-last-component-by-name! *event-handler-component-name*)
+)
+
+;;@doc
+;; Reveal the currently open and focused buffer in the file tree. This will
+;; - Open all subdirectories which lead to the file
+;; - Set the *tree-cursor* to the file
+;; - Open the file tree or focus it
+(define (reveal-file)
+  (define path (editor-document->path (editor->doc-id (editor-focus))))
+  (define workspace (helix-find-workspace))
+  (define ws-prefix (string-append workspace (path-separator)))
+
+  (when (and (string? path)
+             (>= (string-length path) (string-length ws-prefix))
+             (equal? (substring path 0 (string-length ws-prefix)) ws-prefix))
+
+    (define (open-up! p)
+      (define parent (trim-end-matches p (string-append (path-separator) (file-name p))))
+      (set! *open-directories* (hash-insert *open-directories* parent void))
+      (unless (equal? parent workspace)
+        (open-up! parent))
+    )
+
+    (open-up! path)
+    (build-tree!)
+
+    (define index (let loop ([lst *tree*] [index 0])
+      (cond
+        [(empty? lst) #f]
+        [(equal? (first (first lst)) path)
+        index
+        ]
+        [else (loop (rest lst) (+ index 1))]
+      )
+    ))
+
+    (when index
+      (set-cursor! index)
+    )
+
+    (unless (or *tree-open?* *tree-focused?*)
+      (tree-toggle)
+    )
+  )
 )
